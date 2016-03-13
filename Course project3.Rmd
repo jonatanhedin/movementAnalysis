@@ -1,0 +1,75 @@
+---
+title: "Practical Machine Learning - Course Project"
+author: "Jonatan Hedin"
+date: "6 March 2016"
+output: html_document
+---
+
+##Executive summary
+We download and process activity data from movement sensors. After preparation and cleaning, we construct two machine learning based models on the data sets. With classification trees we achieve 83.3% accuracy. With random forests, we acheive 99.7% accuracy.
+
+##How the model was built 
+
+We want to build a model that predicts the type of movement as well as possible, using the Weight Lifting Exercises Dataset. The Dataset contains monitoring data from four sensors on a person lifting a dumbbell.
+
+ ![](http://groupware.les.inf.puc-rio.br/static/WLE/on-body-sensing-schema.png) 
+ 
+ Before we can develop our model we need to prepare the data. The original data set includes 160 variables, but many contain mostly NA or have no variance. With a simple for-loop, we can manually make this classification into desireable and non-desireable features. This leaves us with 54 variables. After this we also want to split the training set in two for model development. 
+
+```{r, echo=TRUE, message=FALSE, cache=TRUE, results='hide'}
+#load libraries in use
+library(caret)
+library(rpart)
+library(rattle)
+library(randomForest)
+
+#set seed
+set.seed(3333)
+
+#download data to data frames for model development and for assignment tests
+download.file("http://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv", "training.csv", method="curl")
+download.file("http://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv", "testing.csv", method="curl")
+training <- data.frame(read.csv("training.csv"))
+testing <- data.frame(read.csv("testing.csv"))
+
+
+#Find out which variables should be skipped because of too many NAs or too little variance
+for(i in 1:160){print(i); x <-summary(training[,i]); print(x)}
+
+#Exclude non-useable variables from data set
+excluded <- c(1,2,3,4,5,6,12,13,14,15,16,17,18:36,50:59,69:83,87:101,103:112,125:139,141:150)
+training <- training[,-excluded]
+testing <- testing[,-excluded]
+
+#split the training set into two for model development
+inTrain <- createDataPartition(y=training$classe, p=0.7, list=FALSE)
+train <- training[inTrain,]
+test <- training[-inTrain,]
+```
+
+###Using prediction with classification trees
+Here, we are using all of the remaining variables in the data set to build a classification tree. 
+
+```{r, echo=FALSE, cache=TRUE, results='show', message=FALSE}
+modFit <- rpart(classe~., data=train, method = "class")
+fancyRpartPlot(modFit)
+
+predictionClassificationTree <- predict(modFit, test, type="class")
+confusionMatrix(predictionClassificationTree, test$classe)
+
+```
+
+Notable is that we end up with at most 14 levels in our classification tree, and that the accuracy is 0.8336.
+
+###Using prediction with random forests
+We use all the remaining variables in our train set to build a random forest model.
+```{r echo=TRUE, results='show', cache=TRUE}
+modFit2 <- randomForest(classe~., data=train)
+
+predictionRandomForest <- predict(modFit2, test)
+confusionMatrix(predictionRandomForest, test$classe)
+```
+
+Here we end up with a model with accuracy 0.9976 which is quite good!
+
+
